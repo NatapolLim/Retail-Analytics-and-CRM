@@ -1,0 +1,14 @@
+a {
+    text-decoration: none;
+    color: white !important;
+    font-weight: 600;
+}
+
+a:hover {
+    color: #ef971d !important;
+    text-decoration: none;
+}
+
+#MainMenu {visibility: visible;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
