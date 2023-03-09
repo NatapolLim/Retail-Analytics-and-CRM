@@ -315,7 +315,12 @@ tab2.markdown('---')
 # ------------------------tab3--------------------------
 
 tab3.header('Customer Profile')
-idx = tab3.selectbox(label='CustomerID',options=rfm_data.index)
+c1, c2 = tab3.columns((2,1))
+idx = c1.selectbox(label='CustomerID',options=rfm_data.index)
+if c2.button(label='Random CustomerID'):
+    idx = np.random.choice(rfm_data[rfm_data.Frequency>10].index)
+
+tab3.markdown('---')
 
 trans = df_mem[df_mem.CustomerID==idx]
 with tab3.expander(label='Transaction History', expanded=False):
@@ -326,14 +331,44 @@ c1.metric(label='CustomerID', value=idx)
 c2.metric(label='Recency', value=rfm_data.loc[idx,'Recency'])
 c3.metric(label='Frequency', value=rfm_data.loc[idx,'Frequency'])
 c4.metric(label='MonetaryValue', value=rfm_data.loc[idx,'MonetaryValue'])
+tab3.metric(label='Segment', value=rfm_data.loc[idx,'Segment_label'])
 
+tab3.markdown('---')
 
+df_mem = df_mem.assign(date=df_mem.InvoiceDate.dt.to_period('D').astype('datetime64[ns]'))
+df_datediff = df_mem.groupby(['CustomerID', 'InvoiceNo'], as_index=False)[['date']].first()
+df_datediff.InvoiceNo = df_datediff.InvoiceNo.astype(int)
+df_datediff.sort_values(by=['CustomerID','InvoiceNo'], inplace=True, ascending=True)
+df_datediff = df_datediff.assign(datediff=df_datediff.date.astype('datetime64').diff(1).dt.days)
 
-# tab3.write(rfm_data.loc[idx])
+idx_first_transaction = df_datediff[~df_datediff.duplicated('CustomerID', keep='first')].index
+df_datediff.loc[idx_first_transaction, 'datediff']=None
+df_datediff.set_index('InvoiceNo', inplace=True)
+# tab3.write(df_datediff)
+
+profile_transaction = df_datediff[df_datediff.CustomerID==idx].copy()
+profile_transaction.dropna(inplace=True)
+
+fig = px.histogram(profile_transaction.datediff)
+fig.update_layout(
+    title=dict(
+        text=f'Number of days that customer come back to purchase again',
+            font=dict(size=24)),
+        xaxis_title='Number of days (day)',
+        yaxis_title='Frequency (times)')
+tab3.plotly_chart(fig)
+
+with tab3.expander(label='Tansaction days number history', expanded=False):
+    st.dataframe(profile_transaction, use_container_width=True)
+
+last_date_purchase = trans.InvoiceDate.max()
+desc_last = trans[trans.InvoiceDate==last_date_purchase].Description
+with tab3.expander(label='Last purchase products', expanded=True):
+    st.dataframe(desc_last, use_container_width=True)
 # c2.metric(label='Freq', value=trans.InvoiceNo.nunique())
 # c2.metric(label='Freq', value=trans.InvoiceNo.nunique())
 tab3.caption('Implementing...')
-tab3.write('Churn model')
+tab3.write('describe anormaly detection')
 tab3.write('top3 repeat purchase products')
 tab3.write('timeline plot the purchase days')
 
